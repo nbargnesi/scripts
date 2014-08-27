@@ -32,8 +32,6 @@ import sys
 
 def exit_failure():
     '''Exits with status 1.'''
-    import pdb
-    pdb.set_trace()
     sys.exit(1)
 
 
@@ -52,6 +50,8 @@ def install_or_die(library):
     rslt = pip.main(['install', '--user', library])
     if rslt != 0:
         exit_failure()
+    print('Installed %s... ready to try again.' % (library))
+    exit_failure()
 
 
 def usage():
@@ -101,7 +101,9 @@ ev = Event()
 class Handler:
     '''Handles filesystem events.'''
     def dispatch(self, event):
-        print(event)
+        path = event.src_path
+        evtype = event.event_type
+        print('%s %s' % (path, evtype))
         ev.set()
 
 
@@ -135,7 +137,11 @@ if __name__ == '__main__':
             observer.schedule(handler, d)
 
     observer.start()
-    ev.wait()
+    try:
+        ev.wait()
+    except KeyboardInterrupt as ki:
+        observer.stop()
+        exit_failure()
     observer.stop()
     exit_success()
 
