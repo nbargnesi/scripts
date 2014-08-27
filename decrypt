@@ -1,0 +1,461 @@
+#!/usr/bin/env bash
+# Copyright (c) 2011 Nick Bargnesi <nick@den-4.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Author: Nick Bargnesi
+
+### BEGIN INCLUDE SCRIPT STUB ###
+
+# Copyright (c) 2005 Nick Bargnesi <nbargnesi@gmail.com>
+#
+# This library is free software; you can redistribute it and/or modify it 
+# under the terms of the GNU Library General Public License as published
+# by the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Library General Public License for more details.
+#
+# You should have received a copy of the GNU Library General Public
+# License along with this library; see the file COPYING.LIB.  If not,
+# write to the Free Software Foundation, Inc., 59 Temple Place - Suite
+# 330, Boston, MA 02111-1307, USA. 
+
+# Provide an framework for shell scripts to retrieve options
+# passed as command line arguments
+
+# Use the scriptstub.sh framework by either including it with
+# the . operator or by embedding this script into your own
+
+SUCCESS=0
+FAILURE=1
+# All the arguments passed to us are place in ARGS
+ARGS="$@"
+
+# Returns "true" if the option $1 is include in the list
+# $1: option to search for in argument list
+#
+# Returns 0 on success and sets $RESULT to true, 1 otherwise
+#
+# example code:
+# ARGS="--optionA --optionB --help"
+# if getOpt --optionB; then
+#   echo $RESULT # prints true
+# fi
+#
+function getOpt() {
+    for arg in $ARGS; do
+        if [ "$arg" = "$1" ]; then
+            RESULT="true"
+            return $SUCCESS
+        fi
+    done
+    return $FAILURE
+}
+
+#
+# Returns the argument proceeding after $1 if $1 is included in the list
+# $1: option to search for in argument list
+# 
+# Returns 0 on success and sets $RESULT, 1 otherwise
+#
+# example code:
+# ARGS="--file /home/user/scriptstub"
+# if getOptParam --file; then
+#   echo $RESULT # prints /home/user/scriptstub
+# fi
+# 
+# 
+#
+function getOptParam() {
+    for arg in $ARGS; do
+        if [ "$arg" = "$1" ]; then
+            found="true"
+        elif [ "$found" = "true" ]; then
+            RESULT=$arg
+            return $SUCCESS
+        else
+            found="false"
+        fi
+    done
+    return $FAILURE
+}
+
+#
+# Returns the argument if any of the arguments are included in the list
+# $@: options to search for in argument list
+#
+# Returns 0 on success and sets $RESULT, 1 otherwise
+#
+# example code:
+# ARGS="--help"
+# if getAnyOpt -h -H --help; then
+#   echo Help!
+# fi
+#
+function getAnyOpt() {
+    for arg in $@; do
+        if getOpt $arg; then
+            RESULT="$arg"
+            return $SUCCESS
+        fi
+    done
+    return $FAILURE
+}
+
+#
+# Shows the help banner, you need to have $HELP set prior to calling
+# showHelp.  This function exists with SUCCESS.
+#
+function showHelp() {
+    echo -en $HELP
+    exit $SUCCESS
+}
+
+#
+# Shows the usage banner, you need to have $USAGE set prior to calling
+# showUsage.  This function does not exit.
+#
+function showUsage() {
+    echo -en $USAGE
+}
+
+#
+# Returns the last argument or empty string if no arguments.
+# $@: argument list
+#
+function getLastArgument() {
+    for arg in $@; do
+        RESULT=$arg
+    done
+    return $SUCCESS
+}
+
+### END INCLUDE SCRIPT STUB ###
+
+function checkArg() {
+    if [ -r "$1" ]; then
+        RESULT="true"
+        return 0
+    else
+        RESULT=""
+        return 1
+    fi
+}
+
+function setExtension() {
+    if [ $CIPHER = "aes-256-cbc" ]; then
+        EXT=".enc.aes"
+    elif [ $CIPHER = "cast5-cbc" ]; then
+        EXT=".enc.cast5"
+    elif [ $CIPHER = "rc4" ]; then
+        EXT=".enc.rc4"
+    elif [ $CIPHER = "des3" ]; then
+        EXT=".enc.des3"
+    elif [ $CIPHER = "bf" ]; then
+        EXT=".enc.bf"
+    elif [ $CIPHER = "idea" ]; then
+        EXT=".enc.idea"
+    fi
+}
+
+function cleanUp() {
+    if [ ! -z $LINK ]; then
+        rm -f $LINK >/dev/null
+    fi
+    if [ ! -z $DIR ]; then
+        rm -f $DIR > /dev/null
+    fi
+}
+
+function toUpper() {
+    UPPERCIPHER=$(echo $1 | tr "[:lower:]" "[:upper:]")
+}
+
+function infoBox() {
+    zenity --info --title "$1" --text "$2"
+}
+
+function warningBox() {
+    zenity --warning --title "$1" --text "$2"
+}
+
+function entryBox() {
+    RESULT=$(zenity --entry --text "${2}" --hide-text --title "${1}")
+}
+
+USAGE="
+Usage: $0 [OPTION]... [FILE] \n\
+Try \`$0 --help' for more information. \n"
+
+HELP="
+Usage: $0 [OPTION]... [FILE] \n\
+Decrypt FILE using the rc4 cipher. \n\
+Example: decrypt passwords.txt.enc.aes \n\
+\n\
+Options: \n\
+ -H, -h, --help\t\tdisplay this help and exit \n\
+\n\
+Ciphers: \n\
+ -aes\t\tuse the AES Cipher (Rijndael) \n\
+ -rc4\t\tuse the RC4 Cipher \n\
+ -des3\t\tuse the Triple-DES Cipher \n\
+ -bf\t\tuse the Blowfish Cipher \n\
+ -idea\t\tuse the IDEA Cipher \n\
+ -cast5\t\tuse the CAST5 Cipher \n\
+"
+
+if [ -z "$NAUTILUS_SCRIPT_CURRENT_URI" -o -z "$NAUTILUS_SCRIPT_SELECTED_FILE_PATHS" ]; then
+    if [ -z "$*" ]; then
+        showUsage
+        exit $FAILURE
+    fi
+
+    if getAnyOpt -h -H --help; then
+        showHelp
+        exit $FAILURE
+    fi
+
+    for arg in $@; do
+        case $arg in
+            *.enc.aes)
+                FILE="$FILE $arg"
+                ;;
+            *.enc.rc4)
+                FILE="$FILE $arg"
+                ;;
+            *.enc.des3)
+                FILE="$FILE $arg"
+                ;;
+            *.enc.bf)
+                FILE="$FILE $arg"
+                ;;
+            *.enc.idea)
+                FILE="$FILE $arg"
+                ;;
+            *.enc.cast5)
+                FILE="$FILE $arg"
+                ;;
+            *)
+                ;;
+        esac
+    done
+
+    if [ -z "$FILE" ]; then
+        showUsage
+        cleanUp
+        exit $FAILURE
+    fi
+
+    STR_PROMPT="Enter decryption password: "
+    STR_PROMPT_TITLE="Decryption Password"
+    VER_PROMPT="Verifying - enter decryption password: "
+    VER_PROMPT_TITLE="Verify Decryption Password"
+    ERR_MATCH="Passwords do not match."
+    ERR_MATCH_TITLE="Verification Failed"
+
+    echo -en "${STR_PROMPT}"
+    oldmodes=$(stty -g)
+    stty -echo
+    read PASS
+    stty $oldmodes
+
+    if [ -z "$PASS" ]; then
+        echo -en "Cancelled.\n"
+        exit $FAILURE
+    fi
+
+    echo
+    echo -en "${VER_PROMPT}"
+    stty -echo
+    read VERIFY
+    stty $oldmodes
+    echo
+    if [ "$VERIFY" != "$PASS" ]; then
+        echo -e "${ERR_MATCH}"
+        exit 1
+    fi
+
+    for file in ${FILE}; do
+        DIR=$(dirname "$file")
+        BASE=$(basename "$file")
+        CWD=$(pwd)
+        cd "$DIR"
+        case $file in
+            *.enc.aes)
+                EXT="aes"
+                CIPHER="aes-256-cbc"
+                ;;
+            *.enc.rc4)
+                EXT="rc4"
+                CIPHER="rc4"
+                ;;
+            *.enc.des3)
+                ENC="des3"
+                CIPHER="des3"
+                ;;
+            *.enc.bf)
+                ENC="bf"
+                CIPHER="bf"
+                ;;
+            *.enc.idea)
+                ENC="idea"
+                CIPHER="idea"
+                ;;
+            *.enc.cast5)
+                ENC="cast5"
+                CIPHER="cast5-cbc"
+                ;;
+        esac
+        echo -en "  $0 --> ${CIPHER} --> $DIR/$BASE"
+        if [ ! -w . ]; then
+            echo -en " (no write permissions, skipping)\n"
+            cd "$CWD"
+            continue
+        fi
+        if openssl $CIPHER -d -salt -in $BASE -out $(echo $BASE | sed 's/\.enc\.[aes]*[rc4]*[des3]*[bf]*[idea]*[cast5]*//') -pass pass:$PASS; then
+            echo -en " (ok)\n"
+            DECRYPTED=1
+        else
+            echo -en " (failed, skipping)\n"
+            FAILED=1
+        fi        
+        cd $CWD
+    done
+    if [ $FAILED ]; then
+        echo -en "\nDecryption failed for some files.\n"
+    fi
+    if [ $NOWRITE ]; then
+        echo -en "\nDecryption failed for some files.  Ensure write permissions on their directories."
+    fi
+    if [ $DECRYPTED ]; then
+        echo -en "\nFiles were successfully decrypted."
+        exit 0
+    fi
+    exit 1
+else
+    WD=$(echo $NAUTILUS_SCRIPT_CURRENT_URI | sed 's/file:\/\///g')
+    cd "$WD"
+    for arg in $NAUTILUS_SCRIPT_SELECTED_FILE_PATHS; do
+        case $arg in
+            *.enc.aes)
+                FILE="$FILE $arg"
+                ;;
+            *.enc.rc4)
+                FILE="$FILE $arg"
+                ;;
+            *.enc.des3)
+                FILE="$FILE $arg"
+                ;;
+            *.enc.bf)
+                FILE="$FILE $arg"
+                ;;
+            *.enc.idea)
+                FILE="$FILE $arg"
+                ;;
+            *.enc.cast5)
+                FILE="$FILE $arg"
+                ;;
+            *)
+                ;;
+        esac
+    done
+    if [ -z "$FILE" ]; then
+        infoBox "Select Files" "Select files to decrypt (with .enc.aes extension)."
+        exit $FAILURE
+    fi
+
+    STR_PROMPT="Enter decryption password: "
+    STR_PROMPT_TITLE="Decryption Password"
+    VER_PROMPT="Verifying - enter decryption password: "
+    VER_PROMPT_TITLE="Verify Decryption Password"
+    ERR_MATCH="Passwords do not match."
+    ERR_MATCH_TITLE="Verification Failed"
+
+    entryBox "${STR_PROMPT_TITLE}" "${STR_PROMPT}"
+    P1=$RESULT
+    if [ -z "$P1" ]; then
+        exit $FAILURE
+    fi
+
+    entryBox "${VER_PROMPT_TITLE}" "${VER_PROMPT}"
+    P2=$RESULT
+    if [ -z "$P2" ]; then
+        exit $FAILURE
+    fi
+    
+    if [ "$P1" != "$P2" ]; then
+        infoBox "${ERR_MATCH_TITLE}" "${ERR_MATCH}"
+        exit $FAILURE
+    fi
+    PASS=${P2}
+
+    for file in ${FILE}; do
+        DIR=$(dirname "$file")
+        BASE=$(basename "$file")
+        CWD=$(pwd)
+        cd "$DIR"
+        if [ ! -w . ]; then
+            NOWRITE=1
+            cd "$CWD"
+            continue
+        fi
+        case $file in
+            *.enc.aes)
+                EXT="aes"
+                CIPHER="aes-256-cbc"
+                ;;
+            *.enc.rc4)
+                EXT="rc4"
+                CIPHER="rc4"
+                ;;
+            *.enc.des3)
+                ENC="des3"
+                CIPHER="des3"
+                ;;
+            *.enc.bf)
+                ENC="bf"
+                CIPHER="bf"
+                ;;
+            *.enc.idea)
+                ENC="idea"
+                CIPHER="idea"
+                ;;
+            *.enc.cast5)
+                ENC="cast5"
+                CIPHER="cast5-cbc"
+                ;;
+        esac
+        if openssl $CIPHER -d -salt -in $BASE -out $(echo $BASE | sed 's/\.enc\.[aes]*[rc4]*[des3]*[bf]*[idea]*[cast5]*//') -pass pass:$PASS; then
+            DECRYPTED=1
+        else
+            FAILED=1
+        fi        
+        cd $CWD
+    done
+    if [ $FAILED ]; then
+        warningBox "Decryption Failure" "Decryption failed for some files."
+    fi
+    if [ $NOWRITE ]; then
+        warningBox "Decryption Failure" "Decryption failed for some files.  Ensure write permissions on their directories."
+    fi
+    if [ $DECRYPTED ]; then
+        infoBox "Decrypted" "Files were successfully decrypted, shredding is recommended."
+        exit 0
+    fi
+    exit 1
+fi

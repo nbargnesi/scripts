@@ -1,0 +1,118 @@
+#!/usr/bin/env python
+'''
+Copyright (c) 2011 Nick Bargnesi <nick@den-4.com>
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+@author: Nick Bargnesi
+'''
+
+import sys
+
+def usage():
+    print 'Usage:', me, '[FILE]'
+    print "Try '" + me, " --help' for more information."
+    
+def help():
+    print 'Usage:', me, '[FILE]'
+    print 'Prints calendar information from a FILE.'
+    print 'Example:', me, 'meeting.ics'
+    print
+    print 'Miscellaneous:'
+    print '  -h, --help\t\tdisplay this help and exit'
+    print
+    print 'icalinfo home page: <http://nick.den-4.com>'
+    
+def exit_success():
+    sys.exit(0)
+    
+def exit_failure():
+    sys.exit(1)
+    
+try:
+    from colorama import Fore, Back, init
+except ImportError:
+    print "You're missing colorama."
+    print "Get it here: http://pypi.python.org/pypi/colorama"
+    exit_failure()
+
+def parse(line):
+    if line.startswith('DTSTART;'):
+        parse_dtstart(line)
+    elif line.startswith('SUMMARY:'):
+        parse_summary(line)
+    elif line.startswith('LOCATION:'):
+        parse_location(line)
+
+def parse_dtstart(line):
+    print Fore.YELLOW + '[WHEN]' + Fore.RESET + Back.RESET
+    datetime = line.split(':')[1].split('\n')[0].split('T')
+    date = datetime[0]
+    
+    # drop seconds on time
+    time = datetime[1][:-2]
+    
+    # print date
+    print Fore.RED + '\tDate' + Fore.YELLOW + ':' + Fore.RESET,
+    print Fore.BLUE + date + Fore.RESET
+    
+    # print time
+    print Fore.RED + '\tTime' + Fore.YELLOW + ':' + Fore.RESET,
+    print Fore.MAGENTA + time + Fore.RESET 
+    print
+    
+def parse_location(line):
+    print Fore.YELLOW + '[WHERE]' + Fore.RESET + Back.RESET
+    location = line.strip('LOCATION:').split('\n')[0]
+    print Fore.RED + '\tLocation' + Fore.YELLOW + ':' + Fore.RESET,
+    print Fore.GREEN + location + Fore.RESET
+    print
+
+def parse_summary(line):
+    print Fore.YELLOW + '[WHAT]' + Fore.RESET + Back.RESET
+    summary = line.strip('SUMMARY:').split('\n')[0]
+    print Fore.RED + '\tSummary' + Fore.YELLOW + ':' + Fore.RESET,
+    print Fore.CYAN + summary + Fore.RESET
+    print
+
+if __name__ == '__main__':
+    me = sys.argv[0]
+    
+    if len(sys.argv) != 2:
+        me = sys.argv[0]
+        usage()
+        exit_failure()
+        
+    arg = sys.argv[1]
+    if arg == '--help' or arg == '-h':
+        help()
+        exit_failure()        
+    try:
+        file = open(arg, 'r')
+    except IOError:
+        print me + ':', arg + ':', 'No such file'
+        exit_failure()
+    
+    init()
+
+    inVEvent = False
+    for line in file.readlines():
+        if line.startswith('BEGIN:VEVENT'):
+            inVEvent = True
+        elif line.startswith('END:VEVENT'):
+            inVEvent = False
+        
+        if inVEvent:
+            parse(line)
+

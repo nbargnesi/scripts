@@ -1,0 +1,171 @@
+#!/usr/bin/env bash
+# Copyright (c) 2011 Nick Bargnesi <nick@den-4.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+# Status display, file by file.
+function report() {
+    echo -ne "($1 type $2) --> to directory $3\n"
+}
+
+# Need at least one archive to unball.
+if test $# -eq 0
+	then
+		echo -ne "Usage: $0 [FILE] ... \n" 
+        echo -ne "Extracts an archive (tgz, tar.gz, tar.bz2, zip, rar, jar, tar).\n" 
+		exit 1
+fi
+
+# Iterate the argument list, checking types, and extracting/uncompressing.
+for FILE in "$@"; do
+    if [ -r "$1" ]; then
+        file=$(basename "$1")
+        if [ ! -z "$(echo ${file} | grep -i \\.bz2)" ]; then
+            TYPE=BZ2
+        elif [ ! -z "$(echo ${file} | grep -i \\.zip)" ]; then
+            TYPE=ZIP
+        elif [ ! -z "$(echo ${file} | grep -i \\.gz)" ]; then
+            TYPE=GZIP
+        elif [ ! -z "$(echo ${file} | grep -i \\.tgz)" ]; then
+            TYPE=TGZ
+        elif [ ! -z "$(echo ${file} | grep -i \\.rar)" ]; then
+            TYPE=RAR
+        elif [ ! -z "$(echo ${file} | grep -i \\.jar)" ]; then
+            TYPE=JAR
+        elif [ ! -z "$(echo ${file} | grep -i \\.tar)" ]; then
+            TYPE=TAR
+        else
+            TYPE=UNK
+        fi
+
+        case $TYPE in
+            BZ2)
+
+                # Get the top-level directories in the tar archive.
+                DIRS_IN_TAR=$(tar tjf "$file" | cut -d '/' -f1 | sort | uniq)
+                # Count the directories
+                NR_DIRS_IN_TAR=$(echo "$DIRS_IN_TAR" | wc -l)
+
+                if [ "$NR_DIRS_IN_TAR" == "1" ]; then
+                    # One directory, use as-is.
+                    report "$file" "$TYPE" "$DIRS_IN_TAR"
+                    tar xjf "$FILE"
+                else
+                    # More than one directory, prevent a 'tarbomb'.
+				    DIR=$(echo "$file" | sed "s/\.bz2$//i" | sed "s/\.tar$//i")
+                    report "$file" "$TYPE" "$DIR"
+                    mkdir -p "${DIR}"
+                    tar xjf "$FILE" -C "${DIR}"
+                fi
+                ;;
+
+            GZIP)
+
+                # Get the top-level directories in the tar archive.
+                DIRS_IN_TAR=$(tar tzf "$file" | cut -d '/' -f1 | sort | uniq)
+                # Count the directories
+                NR_DIRS_IN_TAR=$(echo "$DIRS_IN_TAR" | wc -l)
+
+                if [ "$NR_DIRS_IN_TAR" == "1" ]; then
+                    # One directory, use as-is.
+                    report "$file" "$TYPE" "$DIRS_IN_TAR"
+                    tar xzf "$FILE"
+                else
+                    # More than one directory, prevent a 'tarbomb'.
+                    DIR=$(echo "$file" | sed "s/\.gz$//i" | sed "s/\.tar$//i")
+                    report "$file" "$TYPE" "$DIR"
+                    mkdir -p "${DIR}"
+                    tar xzf "$FILE" -C "${DIR}"
+                fi
+                ;;
+
+            TGZ)
+
+                # Get the top-level directories in the tar archive.
+                DIRS_IN_TAR=$(tar tzf "$file" | cut -d '/' -f1 | sort | uniq)
+                # Count the directories
+                NR_DIRS_IN_TAR=$(echo "$DIRS_IN_TAR" | wc -l)
+
+                if [ "$NR_DIRS_IN_TAR" == "1" ]; then
+                    # One directory, use as-is.
+                    report "$file" "$TYPE" "$DIRS_IN_TAR"
+                    tar xzf "$FILE"
+                else
+                    # More than one directory, prevent a 'tarbomb'.
+                    DIR=$(echo "$file" | sed "s/\.tgz$//i")
+                    report "$file" "$TYPE" "$DIR"
+                    mkdir -p "${DIR}"
+                    tar xzf "$FILE" -C "${DIR}"
+                fi
+                ;;
+
+            ZIP)
+
+                # Get the top-level directories in the zip.
+                DIRS_IN_ZIP=$(zipinfo -1 "$FILE" | cut -d '/' -f1 | sort | uniq)
+                # Count the directories.
+                NR_DIRS_IN_ZIP=$(echo "$DIRS_IN_ZIP" | wc -l)
+                # One directory, unzip as-is.
+                if [ "$NR_DIRS_IN_ZIP" == "1" ]; then
+                    report "$file" "$TYPE" "$DIRS_IN_ZIP"
+                    unzip -qq "$FILE"
+                # More than one directory, unzip preventing a 'zipbomb'.
+                else
+				    DIR=$(echo "$file" | sed "s/\.zip$//i")
+                    report "$file" "$TYPE" "$DIR"
+                    mkdir -p "${DIR}"
+				    unzip -qq -d "${DIR}" "$FILE"
+                fi
+                ;;
+
+            RAR)
+                DIR=$(echo "$file" | sed "s/\.rar$//i")
+                report "$file" "$TYPE" "$DIR"
+                mkdir -p "${DIR}"
+                cd "${DIR}"
+				unrar e -inul "$(dirname $FILE)/$file"
+                cd ..
+                ;;
+            JAR)
+
+                # Get the top-level directories in the JAR.
+                DIRS_IN_JAR=$(zipinfo -1 "$FILE" | cut -d '/' -f1 | sort | uniq)
+                # Count the directories.
+                NR_DIRS_IN_JAR=$(echo "$DIRS_IN_JAR" | wc -l)
+                # One directory, unzip as-is.
+                if [ "$NR_DIRS_IN_JAR" == "1" ]; then
+                    report "$file" "$TYPE" "$DIRS_IN_JAR"
+                    unzip -qq "$FILE"
+                # More than one directory, unzip preventing a 'jarbomb'.
+                else
+				    DIR=$(echo "$file" | sed "s/\.jar$//i")
+                    report "$file" "$TYPE" "$DIR"
+                    mkdir -p "${DIR}"
+				    unzip -qq -d "${DIR}" "$FILE"
+                fi
+                ;;
+            TAR)
+                DIR=$(echo "$file" | sed "s/\.tar$//i")
+                report "$file" "$TYPE" "$DIR"
+                mkdir -p "${DIR}"
+				tar xf $file -C "${DIR}"
+                ;;
+            UNK)
+                echo -ne "($1 type not recognized)\n"
+                ;;
+        esac
+    fi
+    shift
+done
+exit 0

@@ -1,0 +1,194 @@
+#!/usr/bin/env bash
+# Copyright (c) 2011 Nick Bargnesi <nick@den-4.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+### BEGIN INCLUDE SCRIPT STUB ###
+
+# Copyright (c) 2005 Nick Bargnesi <nbargnesi@gmail.com>
+#
+# This library is free software; you can redistribute it and/or modify it 
+# under the terms of the GNU Library General Public License as published
+# by the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This library is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# Library General Public License for more details.
+#
+# You should have received a copy of the GNU Library General Public
+# License along with this library; see the file COPYING.LIB.  If not,
+# write to the Free Software Foundation, Inc., 59 Temple Place - Suite
+# 330, Boston, MA 02111-1307, USA. 
+#
+#!/bin/sh
+
+# Provide an framework for shell scripts to retrieve options
+# passed as command line arguments
+
+# Use the scriptstub.sh framework by either including it with
+# the . operator or by embedding this script into your own
+
+ME=$(basename $0)
+SUCCESS=0
+FAILURE=1
+# All the arguments passed to us are place in ARGS
+ARGS="$@"
+
+# Returns "true" if the option $1 is include in the list
+# $1: option to search for in argument list
+#
+# Returns 0 on success and sets $RESULT to true, 1 otherwise
+#
+# example code:
+# ARGS="--optionA --optionB --help"
+# if getOpt --optionB; then
+#   echo $RESULT # prints true
+# fi
+#
+function getOpt() {
+    for arg in $ARGS; do
+        if [ "$arg" = "$1" ]; then
+            RESULT="true"
+            return $SUCCESS
+        fi
+    done
+    return $FAILURE
+}
+
+#
+# Returns the argument proceeding after $1 if $1 is included in the list
+# $1: option to search for in argument list
+# 
+# Returns 0 on success and sets $RESULT, 1 otherwise
+#
+# example code:
+# ARGS="--file /home/user/scriptstub"
+# if getOptParam --file; then
+#   echo $RESULT # prints /home/user/scriptstub
+# fi
+# 
+# 
+#
+function getOptParam() {
+    for arg in $ARGS; do
+        if [ "$arg" = "$1" ]; then
+            found="true"
+        elif [ "$found" = "true" ]; then
+            RESULT=$arg
+            return $SUCCESS
+        else
+            found="false"
+        fi
+    done
+    return $FAILURE
+}
+
+#
+# Returns the argument if any of the arguments are included in the list
+# $@: options to search for in argument list
+#
+# Returns 0 on success and sets $RESULT, 1 otherwise
+#
+# example code:
+# ARGS="--help"
+# if getAnyOpt -h -H --help; then
+#   echo Help!
+# fi
+#
+function getAnyOpt() {
+    for arg in $@; do
+        if getOpt $arg; then
+            RESULT="$arg"
+            return $SUCCESS
+        fi
+    done
+    return $FAILURE
+}
+
+#
+# Shows the help banner, you need to have $HELP set prior to calling
+# showHelp.  This function exists with SUCCESS.
+#
+function showHelp() {
+    echo -en $HELP
+    exit $SUCCESS
+}
+
+#
+# Shows the usage banner, you need to have $USAGE set prior to calling
+# showUsage.  This function does not exit.
+#
+function showUsage() {
+    echo -en $USAGE
+}
+
+#
+# Returns the last argument or empty string if no arguments.
+# $@: argument list
+#
+function getLastArgument() {
+    for arg in $@; do
+        RESULT=$arg
+    done
+    return $SUCCESS
+}
+
+### END INCLUDE SCRIPT STUB ###
+
+function checkArg() {
+    if [ -r "$1" ]; then
+        RESULT="true"
+        return 0
+    else
+        RESULT=""
+        return 1
+    fi
+}
+
+USAGE="
+Usage: $ME [TOKEN]... \n\
+Try \`$ME --help' for more information. \n"
+
+HELP="
+Usage: $ME [TOKEN]... \n\
+Removes lines containing any of the specified tokens. \n\
+Example: cat file | $ME token1 token2 ... tokenN \n\
+\n\
+Options: \n\
+ -H, -h, --help\t\tdisplay this help and exit \n\
+\n\
+"
+
+if getAnyOpt -h -H --help; then
+    showHelp
+    exit $FAILURE
+fi
+
+GREP_ARGUMENT=""
+for token in $@; do
+    if [ -z "$GREP_ARGUMENT" ]; then
+        GREP_ARGUMENT="${token}"
+    else
+        GREP_ARGUMENT="$GREP_ARGUMENT|${token}"
+    fi
+done
+
+if [ -z "$GREP_ARGUMENT" ]; then
+    cat /dev/stdin
+else
+    grep -Ev "$GREP_ARGUMENT"
+fi
+
