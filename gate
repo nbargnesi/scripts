@@ -26,7 +26,33 @@ OTHER DEALINGS IN THE SOFTWARE.
 @author: Nick Bargnesi
 '''
 
+import os
 import sys
+
+
+def exit_failure():
+    '''Exits with status 1.'''
+    import pdb
+    pdb.set_trace()
+    sys.exit(1)
+
+
+def exit_success():
+    '''Exits with status 0.'''
+    sys.exit(0)
+
+
+def install_or_die(library):
+    '''Install the library through pip or die trying.'''
+    try:
+        import pip
+    except ImportError as ie:
+        print("You're missing pip (%s)." % ie)
+        exit_failure()
+    rslt = pip.main(['install', '--user', library])
+    if rslt != 0:
+        exit_failure()
+
 
 def usage():
     '''
@@ -34,6 +60,7 @@ def usage():
     '''
     print('Usage:', ME, '<DIR>...')
     print("Try '" + ME, " --help' for more information.")
+
     
 def help():
     '''
@@ -52,44 +79,31 @@ def help():
     print('Miscellaneous:')
     print('  -h, --help\t\tdisplay this help and exit')
     print()
-    print('gate home page: <http://nick.den-4.com>')
+    print('gate home page: <https://github.com/nbargnesi/scripts>')
     
-def exit_success(event):
-    '''
-    Exits with status 0.
-    '''
-    print(event.pathname)
-    NOTIFIER.stop()
-    sys.exit(0)
-    
-def exit_failure():
-    '''
-    Exits with status 1.
-    '''
-    sys.exit(1)
-    
+
 from os.path import isdir
 from os import getcwd
+from threading import Event
 try:
-    from pyinotify import ProcessEvent, WatchManager, Notifier
-    from pyinotify import IN_MODIFY
-except ImportError as strerror:
-    print("You're missing pyinotify (%s)." % strerror)
-    print("Get it here: http://pyinotify.sourceforge.net")
-    exit_failure()
+    from watchdog.observers import Observer
+except ImportError as ie:
+    print("You're missing watchdog (%s)." % ie)
+    reply = input('Try to install it? (y/n): ')
+    if reply == 'y':
+        install_or_die('watchdog')
+    else:
+        exit_failure()
+    from watchdog.observers import Observer
 
-class DummyProcessor(ProcessEvent):
-    '''
-    Handles filesystem events.
-    '''
-    def __init__(self):
-        ProcessEvent.__init__(self)
+ev = Event()
 
-    def process_IN_MODIFY(self, event):
-        '''
-        Handles IN_MODIFY(self, event):
-        '''
-        exit_success(event)
+class Handler:
+    '''Handles filesystem events.'''
+    def dispatch(self, event):
+        print(event)
+        ev.set()
+
 
 if __name__ == '__main__':
     ME = sys.argv[0]
@@ -110,21 +124,18 @@ if __name__ == '__main__':
         if not SUCCESS:
             exit_failure()
          
-    WM = WatchManager()
-    NOTIFIER = Notifier(WM, DummyProcessor())
-    WDDS = list()
+    global observer
+    observer = Observer()
+    handler = Handler()
     if not DIRS:
-        DIRS.append(getcwd())
-    for d in DIRS:
-        WDDS += WM.add_watch(d, IN_MODIFY)
+        # all directories under the current will be used 
+        observer.schedule(handler, getcwd(), recursive=True)
+    else:
+        for d in DIRS:
+            observer.schedule(handler, d)
 
-    while True:
-        try:
-            NOTIFIER.process_events()
-            if NOTIFIER.check_events():
-                NOTIFIER.read_events()
-        except KeyboardInterrupt:
-            NOTIFIER.stop()
-            exit_failure()
-    exit_failure()
+    observer.start()
+    ev.wait()
+    observer.stop()
+    exit_success()
 
