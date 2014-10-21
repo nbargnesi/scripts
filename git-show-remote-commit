@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+ABBREV_REF=$(git rev-parse --abbrev-ref HEAD) || exit 1
+if [ $# -eq 0 ]; then
+    echo "usage: $0 REMOTE..." >&2
+    echo "Try \`$0 origin\` to show the commit of origin/$ABBREV_REF." >&2
+fi
+
+REMOTES="$@"
+for REMOTE in $REMOTES; do
+    # is it a remote?
+    if [ -z "$(git remote | grep "^$REMOTE\$")" ]; then
+        echo "$REMOTE: not a remote" >&2
+        exit 1
+    fi
+done
+
+for REMOTE in "$@"; do
+    COMMIT=$(git ls-remote origin refs/heads/$ABBREV_REF)
+    echo -e "$REMOTE:\t$COMMIT"
+done
+
